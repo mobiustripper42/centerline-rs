@@ -4,37 +4,37 @@ Everything specific to **this** project. The `CLAUDE.md` shell reads this file a
 
 ## What We're Building
 
-A Rust rewrite of the web half of CenterLine: the server and the desktop panels. CenterLine is a personal map of which streets the rider has ridden or walked inside areas they define, counted as **miles covered over miles that exist**. The database, the coverage SQL, the Valhalla matchers, the phone app and the hosting all carry over unchanged. The TypeScript app (the `centerline` repo, checked out beside this one) keeps running and is the reference: every slice ends with the Rust server giving an answer the TypeScript one gives, checked by a diff. `docs/SPEC.md` is what we're building; `docs/PROJECT_PLAN.md` is the slices.
+A Rust rewrite of the web half of CenterLine: the server and the desktop panels. CenterLine is a personal map of which streets the rider has ridden or walked inside areas they define, counted as **miles covered over miles that exist**. The database, the coverage SQL, the Valhalla matchers, the phone app and the hosting all carry over unchanged. The TypeScript app (the `centerline` repo, checked out beside this one) keeps running and is the reference: every phase ends with the Rust server giving an answer the TypeScript one gives, checked by a diff. `docs/SPEC.md` is what we're building; `docs/PROJECT_PLAN.md` is the phases.
 
-**This is a fun project, and a school.** No deadline, no revenue goal. Two goals of equal weight: a working Rust CenterLine, and Spink learning Rust by reading and writing real code on every slice. If a slice stops being fun it shrinks or is skipped; the old app keeps working, so nothing depends on finishing.
+**This is a fun project, and a school.** No deadline, no revenue goal. Two goals of equal weight: a working Rust CenterLine, and Spink learning Rust by reading and writing real code on every phase. If a phase stops being fun it shrinks or is skipped; the old app keeps working, so nothing depends on finishing.
 
 **Who is at the keyboard.** Spink (Eric): a retired application developer, 20+ years of TypeScript and C#, new to Rust. So:
 
 - **Explain each new Rust concept briefly and conversationally before using it**, in terms of what he already knows from C# and TypeScript, and say where they differ.
 - **Define every acronym the first time it appears.**
 - **Keep answers short, and ask instead of guessing.**
-- **His notes are his.** After a slice, three lines per new concept go into `docs/RUST_NOTES.md` in his words. Offer the list of concepts; never write the notes.
+- **His notes are his.** After a phase, three lines per new concept go into `docs/RUST_NOTES.md` in his words. Offer the list of concepts; never write the notes.
 
 Roles:
 - **Rider** — the one user, and the operator. No other role, no auth, no multi-tenancy.
 
 ## Stack
 
-Chosen in `docs/PROJECT_PLAN.md` and `docs/SPEC.md` § Stack. A crate is added in the slice that first needs it, and adding one is Spink's to run (`cargo add` is denied).
+Chosen in `docs/PROJECT_PLAN.md` and `docs/SPEC.md` § Stack. A crate is added in the phase that first needs it, and adding one is Spink's to run (`cargo add` is denied).
 
 - **Language** — Rust, stable, edition 2024 (`Cargo.toml`). One crate: the library in `src/lib.rs`, a thin binary in `src/main.rs`.
-- **Web** — Axum, from slice 1.
-- **Panels** — Askama templates and HTMX, from slice 5. The map stays MapLibre JavaScript.
-- **Database access** — sqlx, from slice 2; plain runtime queries first.
+- **Web** — Axum, from phase 1.
+- **Panels** — Askama templates and HTMX, from phase 5. The map stays MapLibre JavaScript.
+- **Database access** — sqlx, from phase 2; plain runtime queries first.
 - **Database** — Postgres with PostGIS. Owned by the TypeScript repo: its schema, its migrations, its data. See Migration Protocol (project).
-- **Matching** — the TypeScript repo's two Valhalla instances, over HTTP, from slice 7.
+- **Matching** — the TypeScript repo's two Valhalla instances, over HTTP, from phase 7.
 - **Hosting/target** — bee-grace, a headless Ubuntu box at home, Tailscale only, docker compose, deployed by a systemd timer watching `origin/production` as the TypeScript app is. Port 3501 until cutover, beside the TypeScript app on 3500.
 - **Dev environment** — mill-dev, a VPS on the same Tailscale network. The rider also works from a phone.
 - **Testing** — `cargo test`. Workflow tooling (`scripts/*.mjs`) is tested with `node --test`.
 
 ## Core Data Model
 
-The tables, their columns and why: `docs/SPEC.md` § Data Model, carried word for word from the TypeScript repo. This repo reads them and, from slice 6, writes them on a database copy; it never changes their shape. The shape a session most needs to hold:
+The tables, their columns and why: `docs/SPEC.md` § Data Model, carried word for word from the TypeScript repo. This repo reads them and, from phase 6, writes them on a database copy; it never changes their shape. The shape a session most needs to hold:
 
 ```
 areas         one row per polygon (Cleveland, Ohio City) — MultiPolygon
@@ -54,7 +54,7 @@ The Rust toolchain is installed with `rustup` under `~/.cargo`. `npm` runs only 
 ```bash
 # Development
 cargo build
-cargo run                          # the binary; from slice 1, the server
+cargo run                          # the binary; from phase 1, the server
 cargo fmt                          # format; the gate checks it
 cargo clippy --all-targets -- -D warnings   # lint; every warning is an error
 
@@ -90,7 +90,7 @@ npm run gen:dictionary             # regenerate docs/DICTIONARY.md after editing
 
 | Slot | What it answers | This project |
 |---|---|---|
-| **Proof** | What counts as a check written before the change | A `cargo test` test, placed by Rust convention (DEC-R002): a unit test in the `#[cfg(test)] mod tests` block of the file it tests; a test of the public API in `tests/`; a database test on `#[sqlx::test]` against a real PostGIS, never mocked. Its name starts with the acceptance criterion's id in snake case (`ac2_rejects_a_ride_with_no_points`). How a test database gets the TypeScript repo's schema is decided at slice 2; until then there are no database tests. Workflow scripts are proven by `node --test` suites beside them. |
+| **Proof** | What counts as a check written before the change | A `cargo test` test, placed by Rust convention (DEC-R002): a unit test in the `#[cfg(test)] mod tests` block of the file it tests; a test of the public API in `tests/`; a database test on `#[sqlx::test]` against a real PostGIS, never mocked. Its name starts with the acceptance criterion's id in snake case (`ac2_rejects_a_ride_with_no_points`). How a test database gets the TypeScript repo's schema is decided at phase 2; until then there are no database tests. Workflow scripts are proven by `node --test` suites beside them. |
 | **Proof command** | How to run the checks covering what you touched | `cargo test <filter>`, the filter naming the module or test that covers the change; `cargo test --test <name>` for one file in `tests/`; `npm run test:scripts` for a workflow script. |
 
 **The gate** is `npm run verify`, run by `/kill-this`.
@@ -103,12 +103,12 @@ npm run gen:dictionary             # regenerate docs/DICTIONARY.md after editing
 | Use the idiomatic Rust right away | Explain it first. A competent default writes good Rust without comment; here every new concept is explained before it appears in code, so the code can be read |
 | Improve the SQL while porting it | The coverage SQL carries rulings that each fixed a real ride (the TypeScript repo's DEC-027 to DEC-038). It is copied verbatim and the results diffed; reinterpreting it while learning Rust is how a ruling gets lost |
 | Add a migration for a schema change | The schema belongs to the TypeScript repo until cutover. This repo never migrates, and never runs `sqlx migrate` against a shared database |
-| Write to the live database | Slices that write (import, matching, coverage) run against a copy, never the live one, so two servers never write the same tables (`docs/PROJECT_PLAN.md` § Starting point) |
+| Write to the live database | Phases that write (import, matching, coverage) run against a copy, never the live one, so two servers never write the same tables (`docs/PROJECT_PLAN.md` § Starting point) |
 | A street belongs to an area | It does not. Membership is a spatial query, so a shared boundary road counts for both sides. A `street.area_id` is a defect (`docs/SPEC.md` § Data Model) |
 | Coverage is a count of streets done | It is miles, measured by PostGIS on a geography cast, never in Rust, so there is one definition of a mile (`docs/SPEC.md` § Coverage Rules) |
 | Sum coverage across areas for a grand total | There is no grand total. Shared roads double-count by design; each area is an independent goal |
 | Mock the database in tests | PostGIS functions are the logic under test. Database tests run against the real thing |
-| A route's JSON can be tidied | It cannot. The phone app calls these routes unchanged, so the URLs and JSON match the TypeScript app's byte for byte, and the slice's diff script is what proves it |
+| A route's JSON can be tidied | It cannot. The phone app calls these routes unchanged, so the URLs and JSON match the TypeScript app's byte for byte, and the phase's diff script is what proves it |
 
 ## Blast-Radius Triggers
 
@@ -121,17 +121,17 @@ Read by `/kill-this`, which answers a hit with `/security-review`. There is no m
 
 ## Migration Protocol (project)
 
-N/A here until cutover: the TypeScript repo owns the schema and its migrations, and runs them on every deploy. This repo adds no migration files and never runs a migration. A change the Rust app needs in the schema is made as a migration in the TypeScript repo, by its own workflow. Who runs migrations after cutover is decided before slice 10 (`docs/PROJECT_PLAN.md` § Decisions deferred).
+N/A here until cutover: the TypeScript repo owns the schema and its migrations, and runs them on every deploy. This repo adds no migration files and never runs a migration. A change the Rust app needs in the schema is made as a migration in the TypeScript repo, by its own workflow. Who runs migrations after cutover is decided before phase 10 (`docs/PROJECT_PLAN.md` § Decisions deferred).
 
 ### Production write protection
 
-On bee-grace the database has no host port: only an app container reaches it. The discipline is that a session never points a connection string at bee-grace, and that the writing slices (6 to 8) use a copy of the database, never the live one. There is no mechanism behind either yet. What this does not cover: a shell on bee-grace itself, and the Rust container once slice 1 gives it a connection string, which is why the read-only slices come first.
+On bee-grace the database has no host port: only an app container reaches it. The discipline is that a session never points a connection string at bee-grace, and that the writing phases (6 to 8) use a copy of the database, never the live one. There is no mechanism behind either yet. What this does not cover: a shell on bee-grace itself, and the Rust container once phase 1 gives it a connection string, which is why the read-only phases come first.
 
 ## Conventions
 
 - **Format and lint** — `cargo fmt` defaults; `cargo clippy --all-targets -- -D warnings` clean. No `#[allow(...)]` without a comment saying why.
 - **Structure** — library code in `src/`, one module per concern; `src/main.rs` only starts things. Split a module on responsibility, not on a line count.
-- **Error handling** — functions that can fail return `Result` and pass errors up with `?`. No `.unwrap()` or `.expect()` outside tests and the startup in `main`. The error type of a route is decided at slice 3.
+- **Error handling** — functions that can fail return `Result` and pass errors up with `?`. No `.unwrap()` or `.expect()` outside tests and the startup in `main`. The error type of a route is decided at phase 3.
 - **Geometry** — every geometry is SRID 4326 (plain longitude and latitude). Lengths and spatial tests are PostGIS calls in SQL, never Rust arithmetic.
 - **SQL** — ported from the TypeScript repo verbatim, as a string the Rust code runs. A query is changed only with a diff showing the same rows come back.
 - **Naming** — Rust's: `snake_case` functions, modules and files, `CamelCase` types. Database names are the TypeScript repo's, unchanged.

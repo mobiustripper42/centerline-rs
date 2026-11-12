@@ -22,15 +22,15 @@ It replaces CityStrides, which was rejected because it only ingests from Garmin 
 
 ## Stack
 
-What changes is the server and the panels; everything they talk to stays where it is (`docs/PROJECT_PLAN.md` § Starting point). A layer's crate is added in the slice that first needs it, not up front.
+What changes is the server and the panels; everything they talk to stays where it is (`docs/PROJECT_PLAN.md` § Starting point). A layer's crate is added in the phase that first needs it, not up front.
 
 - **Language** — Rust, stable, edition 2024. One crate, a library with a thin binary on top.
-- **Web framework** — Axum, from slice 1.
-- **Panels** — Askama templates with HTMX, one panel at a time, from slice 5. Maud is the alternative, decided then.
-- **Database access** — sqlx, from slice 2. Plain runtime queries first; the compile-checked `query!` macros need a database at build time, and are decided at slice 2.
+- **Web framework** — Axum, from phase 1.
+- **Panels** — Askama templates with HTMX, one panel at a time, from phase 5. Maud is the alternative, decided then.
+- **Database access** — sqlx, from phase 2. Plain runtime queries first; the compile-checked `query!` macros need a database at build time, and are decided at phase 2.
 - **Database** — unchanged: Postgres with the PostGIS extension, in Docker Compose. The schema belongs to the TypeScript repo's migrations until cutover; this repo never migrates it.
-- **Map matching** — unchanged: the same two Valhalla instances, street and path, called over HTTP from slice 7 behind a `Matcher` trait.
-- **Map rendering** — unchanged: the MapLibre client code is reused as plain JavaScript, served by the Rust server from slice 4.
+- **Map matching** — unchanged: the same two Valhalla instances, street and path, called over HTTP from phase 7 behind a `Matcher` trait.
+- **Map rendering** — unchanged: the MapLibre client code is reused as plain JavaScript, served by the Rust server from phase 4.
 - **Phone app** — unchanged and untouched: the Expo app calls the same URLs and gets the same JSON.
 - **Hosting / target** — unchanged: bee-grace, a headless Linux box at home, reachable over Tailscale only. The image becomes one Rust binary. Until cutover the Rust server runs on port 3501 beside the TypeScript one on 3500.
 - **Testing** — `cargo test`: unit tests inline, public-API tests in `tests/`, database tests on `#[sqlx::test]` against a real PostGIS, never mocked. One `verify` script gates the doc checks, format, lint, tests and build.
@@ -100,7 +100,7 @@ Streets are loaded once by a setup script. Nothing touches the Overpass API at r
 
 ## Phases
 
-The slices, what each one is done when, and the Rust each one meets are in `docs/PROJECT_PLAN.md`. Each slice ends with the Rust server giving an answer the TypeScript one gives, checked by a diff.
+The phases, what each one is done when, and the Rust each one meets are in `docs/PROJECT_PLAN.md`. Each phase ends with the Rust server giving an answer the TypeScript one gives, checked by a diff.
 
 ## Not planned
 
