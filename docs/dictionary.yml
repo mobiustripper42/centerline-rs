@@ -1,0 +1,18 @@
+# The dictionary. Three keys per entry, no others.
+#
+#   term  the canonical name. Unique across the file.
+#   says  plain English, max 160 characters. May not lean on an unregistered term —
+#         definitions bottom out in ordinary English or they do not pass.
+#   not   forbidden alternates. Using one fails the build, naming the canonical term.
+#
+# `docs/DICTIONARY.md` is generated from this file by `npm run gen:dictionary`. Never edit the
+# markdown.
+#
+# The gate reads `docs/SPEC.md`, `docs/decisions/*.md` and `.claude/CLAUDE-context.md`, and flags
+# every unregistered acronym. The answer to most is plain words, not registration: "pull request",
+# not PR. Register a term only when it has a specific local meaning a reader could guess wrong.
+#
+# No baseline: this project starts empty, so the gate runs at full strength from the first word.
+# Never run `scripts/gen-dictionary-baseline.mjs` here.
+
+[]

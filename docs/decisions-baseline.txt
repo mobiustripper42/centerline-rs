@@ -1,0 +1,8 @@
+# Legacy decision records, frozen at adoption of the schema v1 gate.
+#
+# Empty on purpose for a project that starts with no decision records: its corpus is born under
+# the schema, so nothing is frozen. The file exists because CLAUDE.md cites this path and
+# check:context resolves it. In that case never add a line by hand and never run
+# `scripts/gen-decisions-baseline.mjs` — a baseline exempts records from the schema, and exempting
+# records written after the rule existed defeats the rule. A project adopting jig with records
+# already written runs the generator once at adoption, per CLAUDE.md.
