@@ -1,15 +1,15 @@
 ---
 name: bump-major
-description: Manually bump the project's major version. Use for breaking changes — new data model, removed feature, anything users would notice on upgrade. Versioned projects only (requires a `package.json` with a `version` field). Writes a CHANGELOG.md entry and tags on the active trunk (`main`).
+description: Manually bump the project's major version. Use for breaking changes — new data model, removed feature, anything users would notice on upgrade. The version is the `version` line in `Cargo.toml`'s `[package]`, read and written by `scripts/version.mjs`. Writes a CHANGELOG.md entry and tags on the active trunk (`main`).
 ---
 
 You are bumping the project's major version. Major bumps are manual because they signal a breaking change — there's no automatic trigger that knows what counts as breaking.
 
 ## Step 0 — Sanity gate
 
-Run `node -e "process.exit(require('./package.json').version ? 0 : 1)" 2>/dev/null || echo "not versioned"`. If it prints `not versioned` — no `package.json`, or one with no `version` field — STOP. Tell the user: "/bump-major requires a `package.json` with a `version` field (versioned projects only). This repo has none." Do not proceed.
+Run `node scripts/version.mjs get`. If it exits non-zero, STOP and show the user what it printed — `Cargo.toml` is missing, has no `[package]` version, or has one the script refuses to read. Do not proceed.
 
-**The gate is the `version` field, not the file.** It used to be `[ -f package.json ]`, which was always a proxy for "is this a versioned thing" and stopped being a good one the moment a repo wanted a test runner without a version. Jig is that repo: it carries a `private`, version-less manifest so it can run `vitest`, and all three version skills must skip it exactly as they did when it had no manifest at all. A project that *is* versioned is unaffected — it has both.
+**The version lives in `Cargo.toml`, not `package.json`** (DEC-R004). This repo's `package.json` is a private, version-less manifest for the doc gates; the app is the Rust crate. `scripts/version.mjs` is the only thing that reads or writes the version, so all three version skills agree on where it is.
 
 ## Step 1 — Resolve working branch
 
@@ -26,9 +26,9 @@ If `BRANCH != $WORKING_BRANCH`: STOP. Major bumps must run on the working branch
 
 Read the current version:
 ```
-CURRENT_VERSION=$(npm pkg get version | tr -d '"')
+CURRENT_VERSION=$(node scripts/version.mjs get)
 ```
-`npm pkg get` is JSON-aware and handles minified single-line `package.json`. If `CURRENT_VERSION` is empty, STOP and surface "Could not parse version from package.json — is the file valid JSON with a `version` field?"
+If it exits non-zero, STOP and surface what it printed.
 
 Compute the new version: split `CURRENT_VERSION` on `.`, increment the first segment, set the other two to `0`. Hold as `NEW_VERSION`.
 
@@ -39,10 +39,10 @@ If the user declines, stop with no changes.
 ## Step 3 — Bump
 
 ```
-npm version major --no-git-tag-version
+BUMPED=$(node scripts/version.mjs bump major)
 ```
 
-`npm version major` zeros minor + patch automatically (e.g. `1.7.3 → 2.0.0`). Verify the result matches `NEW_VERSION` from Step 2; if not (someone modified package.json mid-flight), STOP and surface the discrepancy.
+It zeros minor + patch (e.g. `1.7.3 → 2.0.0`), edits the one `version` line in `Cargo.toml`'s `[package]`, and runs `cargo check` so `Cargo.lock` follows. A non-zero exit: STOP and surface what it printed. Verify `BUMPED` matches `NEW_VERSION` from Step 2; if not (someone modified `Cargo.toml` mid-flight), STOP and surface the discrepancy.
 
 ## Step 4 — CHANGELOG entry
 
@@ -56,8 +56,7 @@ If `CHANGELOG.md` doesn't exist, create with `# Changelog\n\n`. If it exists but
 ## Step 5 — Commit + tag + push
 
 ```
-git add package.json CHANGELOG.md
-[ -f package-lock.json ] && git add package-lock.json
+git add Cargo.toml Cargo.lock CHANGELOG.md
 git commit -m "Bump major version to v$NEW_VERSION — <RATIONALE>"
 ```
 

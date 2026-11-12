@@ -3,16 +3,17 @@
 Canonical specs for the shared roster. The shell's `## Session Skills` and `## Agents` tables are
 the summary a session reads; this is the detail.
 
-This file is installed byte-identical in every project, so it describes the roster and never one
-repo's progress through it. What ships is what appears here: a file in `.claude/skills/` with no
-entry is an unclassified file, which is the state this workflow keeps finding defects in.
+This repo's copy started as jig generation 6's and is now its own (DEC-R001); it describes the
+roster and never one task's progress through it. What ships is what appears here: a file in
+`.claude/skills/` with no entry is an unclassified file, which is the state this workflow keeps
+finding defects in.
 
 ## Skills — nine
 
 | Skill | When | What |
 |-------|------|------|
-| `/its-alive` | Session start | Open the per-session file on the orphan `sessions` branch, read context, run the drift and permission-policy checks, recommend a task |
-| `/build-task` | A task that changes behaviour, spec walked | Writes the walked spec into the issue, then readback by `@test-writer`, then failing tests, then `@implementer` until they pass; the Lead locks the tests by committing them first, runs the proof itself, then `/kill-this`. Running it approves the spec. The spec template, `task-spec.md`, ships in the skill's folder |
+| `/its-alive` | Session start | Open the per-session file on the orphan `sessions` branch, read context, recommend a task |
+| `/build-task` | A task that changes behaviour, spec walked | Writes the walked spec into the issue, then readback by `@test-writer`, then failing tests, then `@implementer` until they pass; the Lead locks the test blocks with `scripts/lock-tests.mjs` (DEC-R002), runs the proof itself, waits while the operator writes a `(yours)` criterion if there is one (DEC-R003), then `/kill-this`. Running it approves the spec. The spec template, `task-spec.md`, ships in the skill's folder |
 | `/kill-this` | Per task | Build check, commit, `@code-review`, open the PR with `closes #<issue>`, append a `## Task <N>` block. Step 3.5 reads Blast-Radius Triggers and runs `/security-review` when the diff hits one |
 | `/save-this` | Between tasks, before `/clear` | Replace the session file's Next Steps with the next task, open PRs, standing rules (word for word), the parking lot (nothing dropped unless closed) and a carry-over for the next task; push the `sessions` branch. The cleared context reads it back at the spec step |
 | `/its-dead` | Session end, once | Stamp `ended:`, tally points, display wall clock, close the session file. No time math, no version bump |
@@ -73,13 +74,13 @@ plausible, because they fire at phase boundaries.
 
 ## Output styles — one
 
-The style is one file, kept here at `.claude/output-styles/one-piece.md`, and no project holds a
-copy (DEC-J007). The class is `jig-only`: drift reports a project copy as NOT YOURS, and the fix
-is deletion. Every session on the machine reads jig's file through a symlink at
-`~/.claude/output-styles/one-piece.md`, so an edit here is live at the next session start with
+The style is one file, kept in jig at `<jig>/.claude/output-styles/one-piece.md`, and this repo
+holds no copy (jig's DEC-J007): a repo copy would beat the machine's, so the fix for one is
+deletion. Every session on the machine reads jig's file through a symlink at
+`~/.claude/output-styles/one-piece.md`, so an edit in jig is live at the next session start with
 nothing to copy. Which style is **on** is `{ "outputStyle": "One piece" }` in
-`~/.claude/settings.json`, hand-edited once; the master defines no such key, so `settings-policy`
-neither checks nor writes one.
+`~/.claude/settings.json`, hand-edited once; this repo's `.claude/settings.json` defines no such
+key.
 
 Until 2026-09-18 both travelled — the file as `logic`, the key in the master — and a project-level
 `.claude/settings.json` beats the user-level one, so the machine default was never consulted in

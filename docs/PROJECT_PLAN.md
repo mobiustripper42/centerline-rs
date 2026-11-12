@@ -1,113 +1,90 @@
-# [Project Name] — Project Plan
+# Centerline in Rust: project plan
 
-**Start date:** [YYYY-MM-DD]
-**Target:** to be decided — a date, if there is one
-**Critical path:** [What must be true before this is useful to anyone]
+Nov 11, 2026. Approved by Spink the same day. The last section records decisions made after approval.
 
----
+## Starting point
 
-## Estimation Method
+The Rust version rewrites only the TypeScript server and the React panels; the database, the SQL, Valhalla and the self-hosting all carry over unchanged. Read from the `centerline-main` repo (SPEC.md, 38 decision records, the code), not from memory.
 
-Fibonacci scale (2, 3, 5, 8, 13). See `VELOCITY_AND_POKER_GUIDE.md` for definitions.
-All estimates from planning poker between [your name] and Claude.
-Disagreements logged in the Standing Disagreements table at the bottom.
-Tests are baked into every task estimate — no separate testing tasks.
+| Piece | Today | In the Rust version |
+| --- | --- | --- |
+| Schema | 15 migrations, kept as is (your call) | Unchanged. The Rust app never migrates until cutover |
+| Coverage logic | PostGIS SQL inside `db/coverage.ts` and neighbors, about 4,500 lines of TS around it (DEC-001, 012, 014) | SQL copied across verbatim; Rust only runs it |
+| Map matching | Two Valhalla instances over HTTP, street and path (DEC-011, 037) | Same instances, called from Rust behind a `Matcher` trait |
+| API | About a dozen routes, 210 lines; the phone calls `/api/rides` and the basemap routes | Same URLs and JSON, so the Expo app works untouched |
+| GPX | Hand-written reader with 11 fixture files (DEC-006) | Ported against the same fixtures |
+| Map | MapLibre client code | Reused as plain JavaScript |
+| Panels | React, 14 client components, about 4,000 lines under `app/` | Askama templates plus HTMX, one panel at a time |
+| Hosting | bee-grace, docker compose, systemd timer watching `origin/production` (DEC-002, 004) | Same shape; the image becomes one Rust binary |
+| Tests | 31 database test files, 8 Playwright specs | Old tests become the answer key |
 
----
+**Parity method.** Both servers run side by side on bee-grace against the same data: old on 3500, new on 3501. Every slice ends with a script that asks both the same question and diffs the answers.
 
-## Phase 0: Infrastructure
+**One rule on writes.** Slices that write (import, matching, coverage) run against a copy of the database, never the live one, so two servers never write the same tables.
 
-Before any feature work: get the test harness, the gate and the docs to a state where every later
-session is faster and safer. No user-facing value ships in this phase.
+## Slices
 
-**Infrastructure is not chosen here.** Phase 0 chooses only the language and test runner the harness
-needs. The database, host, framework and every other layer arrive
-in their own time: the first phase whose feature needs one carries a task that chooses it, as a
-decision record, and fills its line in `docs/SPEC.md` `## Stack`. Until then the work runs against
-the thinnest thing that answers the question — an in-memory fake, a local file.
+Eleven slices, each ending with the new server giving an answer the old one gives, checked by a diff. The order runs from least to most dangerous: read-only first, writes last.
 
-**The rows below are questions, not a checklist.** Delete rows that do not apply and add the ones
-this project needs. Points are yours to set.
+| # | Slice | Done when | Rust you meet |
+| --- | --- | --- | --- |
+| 0 | Paper only: new repo, SPEC and DECISIONS carried over, a Rust notes file | Plan and first decision record exist | Install with `rustup`; `cargo new` |
+| 1 | Hello, grace: an Axum server with `/health` showing the git sha, built in Docker, deployed by the existing timer pattern on port 3501 | `curl` over Tailscale answers | `main`, `async fn`, crates and `Cargo.toml` |
+| 2 | First database read: `GET /api/areas` from the existing Postgres | JSON identical to the old route | Structs, `Serialize`, `Result` and `?`, sqlx |
+| 3 | The other read-only routes, one per session: headline, stats, list, remaining, streets, covered, tracks | A script diffs old against new for every route | Error enums, `Option`, shared state |
+| 4 | The map page: MapLibre client reused, basemap tiles served with byte ranges | Cleveland draws from the Rust server | Static files, middleware layers |
+| 5 | Panels in Askama and HTMX, one at a time: headline, stats, streets list, areas, then import and look | Each panel matches the old screen | Templates, borrowing in loops |
+| 6 | GPX import with no matching: parse, fingerprint, de-duplicate, insert into the database copy | The 11 fixtures pass; a season imports to the same rows | Iterators, unit tests, parsing |
+| 7 | `Matcher` trait and a Valhalla client; ports `decodePolyline6` and the piece reader | `track_pieces` equals the old app's for the same rides | Traits, `serde_json`, async HTTP |
+| 8 | Coverage rebuild, SQL copied verbatim, in three steps: basics (steps 1 to 4), pairs (5), gap fill (6) | `coverage` rows equal the old app's on a whole season | Little new; consolidation |
+| 9 | `/api/rides` complete: upload, match, rebuild; the phone uploads a ride unchanged | A real ride from the Pixel counts | Request bodies, background work |
+| 10 | Cutover: Rust takes port 3500, old app retired | Old tests pass or are replaced, and a week of use is clean | Release builds, logs |
 
-| # | Task | Points | Notes |
-|---|------|--------|-------|
-| 0.1 | Test harness installed and one real test passing | [N] | The `Proof` slot in `.claude/CLAUDE-context.md` names what a check is here |
-| 0.2 | The gate runs end to end and is green | [N] | One command. `/kill-this` runs it before every commit |
-| 0.3 | Security-shaped tests for whatever guards access | [N] | Delete if nothing guards access. Arrives with the layer it guards, which may be a later phase |
-| 0.4 | `.claude/ui-context.md` filled in from jig's starter, if there is a UI | [N] | Delete for a project with no surface. Arrives with the first screen, which may be a later phase. `/kill-this` and `/retro` run `@ui-reviewer` once it exists |
-| 0.5 | Session skills present in `.claude/skills/` | 1 | Installed with the rest of jig |
-| 0.6 | `CLAUDE.md`, `.claude/CLAUDE-context.md`, `docs/SPEC.md`, `docs/decisions/` filled in | [N] | Before the first working session if possible |
+Not in the list: your own matcher. It starts after cutover as its own small project, with Valhalla's output as the answer key.
 
-**Phase 0 total: [sum] pts**
+## Rust learning track
 
-**Ejection point:** the environment is trustworthy. Nothing user-facing exists yet.
+Every slice includes a small piece of Rust that you read and a smaller one that you write, so the learning happens on real code instead of in exercises. The concepts are already ordered to match the slices above: ownership and `Result` come first because slices 1 to 3 use them immediately.
 
-**Demo:** the gate, green, from a clean checkout.
+- **Before each slice:** a short, conversational explanation of its new concepts, in the same size as our sessions so far. Acronyms are defined when they first appear.
+- **During:** Claude writes most of the slice. You write one piece yourself: a handler in slice 2, a test in slice 6, the diff script in slice 3. Claude reviews it, and the compiler's messages come first.
+- **After:** three lines per new concept go into `RUST_NOTES.md` in the repo, in your words, so the notes are yours and searchable.
+- **Read along:** the official Rust Book (free, online) matches the order of the slices: ownership, enums and `match`, error handling, traits, iterators, then async. Rustlings (small exercises) is an option for off days.
+- **Where it gets hard:** traits and async, in slices 7 and 9. Both come with a plain-language walkthrough first, as ownership did.
 
----
+If a slice stops being fun, it can shrink or be skipped. The old app keeps working, so nothing depends on finishing.
 
-## Phase 1: [Name]
+## Decisions deferred, and open questions
 
-[Description of what this phase delivers and why it comes first]
+Nothing below is decided until its slice needs it; the leanings are only starting guesses.
 
-| # | Task | Effort | Notes |
-|---|------|--------|-------|
-| 1.1 | [Task name] | [N] | |
-| 1.2 | [Task name] | [N] | |
+| Decision | Decide at | Leaning |
+| --- | --- | --- |
+| New repo, or a folder in the existing one | Slice 0 | New repo, so the old one stays untouched as the reference |
+| Compile-checked SQL (`query!`) or plain runtime queries | Slice 2 | Runtime first; the macros need the database at build time |
+| Askama or Maud for templates | Slice 5 | Askama, since its templates look like HTML |
+| HTMX panels, or keep some React islands | Slice 5 | HTMX; the map stays JavaScript either way |
+| Reuse the Playwright specs against the Rust server | Slice 5 | Try it; the selectors may need changes where the markup differs |
+| GPX: hand port or a crate | Slice 6 | Hand port; DEC-006 and the fixtures already define the behavior |
+| Who runs migrations | Before slice 10 | The old TypeScript migrator until cutover |
+| Admin scripts (load streets, add area, cut area) | After slice 8 | Leave them in TypeScript until you want them ported |
 
-**Phase 1 total: [sum] pts**
+**What could bite.** The coverage SQL carries the rulings of DEC-027 through DEC-038, and each one fixed a real ride. Port it as written and diff the results; do not reinterpret it while learning Rust.
 
-**Ejection point:** [What's working / what can be demoed at end of this phase]
+**Open questions for you.**
 
----
+- [ ] Is a new repo right, or do you want `rs/` inside the current one?
+- [ ] Is a fresh copy of the database fine for slices 6 to 8 (a `pg_dump` into a second database on bee-grace)?
+- [ ] Which routes does the Expo app call besides `/api/rides` and the basemap? I confirmed those two only; slice 3 starts by listing the rest.
 
-## Phase 2: [Name]
+## Decisions made after approval (2026-11-11)
 
-| # | Task | Effort | Notes |
-|---|------|--------|-------|
-| 2.1 | [Task name] | [N] | |
+These supersede the matching lines above.
 
-**Phase 2 total: [sum] pts**
-
----
-
-## Phases
-
-One row per phase, written by `/retro` at close.
-
-| Phase | Closed | Points | Days | Re-estimated | Net drift |
-|-------|--------|--------|------|--------------|-----------|
-| 0 | — | — | — | — | — |
-| 1 | — | — | — | — | — |
-
-**Points** is done / planned. **Net drift** is final points minus original estimates; positive means tasks ran bigger than pointed.
-
----
-
-## Estimation Poker — Standing Disagreements
-
-Unresolved estimate disagreements. Revisit when the task starts.
-
-| Task | Claude says | You say | Question |
-|------|------------|---------|----------|
-| [task] | [N] | [N] | [what's in dispute] |
-
----
-
-## Phase Boundary Checklist
-
-At the end of every phase:
-1. The gate is green — the one command `/kill-this` runs before every commit
-2. Every check the `Proof` slot names for this project passes
-3. Run `/retro` — it writes the retrospective entry in `docs/RETROSPECTIVES.md` and the phase row above
-4. Return to primary planning chat — review docs against intent
-
----
-
-## Cuttable Tasks (if behind)
-
-Tasks that can move to a later phase, or out of scope, without breaking core functionality. Reference before any scope cut conversation.
-
-| Task | Why it's cuttable | Move to |
-|------|------------------|---------|
-| [task ID] | [reason] | Phase [N], or out of scope |
+1. **Repo.** New repo, `centerline-rs`. The old repo stays untouched as the reference. Answers the first open question.
+2. **Workflow.** The repo starts as a copy of jig's scaffolding (jig generation 6) and is then edited freely. Jig itself is not changed, and nothing syncs back. Whether to merge the two later, or keep two versions, is decided later.
+3. **Slice 0 is bigger.** It now also includes adapting the copied workflow for Rust, as task 0.1, before any app code. Slice 1 starts after that merges.
+4. **Tests follow Rust convention.** Unit tests sit inline in `#[cfg(test)] mod tests` blocks; tests of the public API go in `tests/`; database tests use `#[sqlx::test]` against a real PostGIS. The workflow bends to this: the test lock hashes the test blocks instead of listing test files.
+5. **"You write one piece" becomes a criterion marked `(yours)`.** On a task where Spink wants the practice, `@test-writer` writes that criterion's test and stub, `@implementer` builds the rest first, and the task then waits while Spink writes the code. It is optional per task.
+6. **Versioning** reads and bumps `Cargo.toml`, through a small script that replaces the `package.json` calls in the three version skills.
+7. **Still open:** the database copy for slices 6 to 8, and the full list of routes the Expo app calls.

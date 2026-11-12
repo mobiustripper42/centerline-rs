@@ -275,4 +275,4 @@ If `EXISTING_PR_STATE` was `OPEN` and Step 4.2 was skipped, surface the existing
 - **Branch ownership.** Code commits go to the current task branch. Session-file commits go to the sessions branch via the worktree. Two completely separate timelines.
 - **Multiple PRs per session is normal.** Each `/kill-this` appends a `## Task <N>` block; the `pr_numbers:` list grows. `/retro` reads this list to enumerate the PRs to query for merge timestamps.
 - **Merge ordering is free.** The user can merge each PR whenever — before the next `/kill-this`, after `/its-dead`, days later. Retro reads GitHub at retro time and gets the merge timestamps regardless.
-- **Atomicity at `/its-dead`.** Once `/its-dead` writes `status: closed`, the session file is never modified again. `/retro` reads it but only writes to `RETROSPECTIVES.md` and (on dev projects) to `package.json` / `CHANGELOG.md` / git tags.
+- **Atomicity at `/its-dead`.** Once `/its-dead` writes `status: closed`, the session file is never modified again. `/retro` reads it but only writes to `RETROSPECTIVES.md` and (on dev projects) to `Cargo.toml` / `Cargo.lock` / `CHANGELOG.md` / git tags.

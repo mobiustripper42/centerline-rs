@@ -47,8 +47,14 @@ When the gate passes, run `date -u +%Y-%m-%dT%H:%M:%SZ` and keep the time it pri
 Step 6's cost starts counting.
 
 Shell variables do not survive between calls. Every value this skill names — the time, `START`,
-`TESTS`, `REF` and the test files — is kept in the conversation, and a command written with `$NAME`
-takes the value as printed.
+`TESTS`, `BEFORE`, `LOCK`, `REF` and the test files — is kept in the conversation, and a command
+written with `$NAME` takes the value as printed.
+
+**The test lock is `scripts/lock-tests.mjs`, not a file list** (DEC-R002). Rust keeps unit tests
+inline, in a `#[cfg(test)]` block in the same file as the code, so a test file and a code file are
+often one file. The script fingerprints every test block and every file under `tests/`; `verify`
+names each block added, changed or removed since a snapshot. Exit 1 is a difference. Exit 2 is a
+file it could not read, which is never shipped past: stop and tell the operator what it printed.
 
 Keep what `git rev-parse HEAD` prints as `START`. Then, if `git status --porcelain` lists anything —
 work already in the tree before this run, such as a staged rename or an edit the operator made —
@@ -57,6 +63,16 @@ lists, then `git commit -m "build-task: work already in the tree (squashed at sh
 the task but is not the build. Committed, it is out of reach of the test lock and of every stash
 below, which would otherwise take it with the build and delete it. Step 5 folds it back in; a run
 abandoned before then leaves it as a commit on the branch.
+
+Then `cargo fmt --check`. A tree that is not formatted is a stop: Step 2 formats the crate before
+locking, and reformatting files `@test-writer` never touched would leave them out of the tests
+commit. Tell the operator; the fix is `cargo fmt` committed on its own, before the run.
+
+Then snapshot the tests as they stand, before `@test-writer` touches anything:
+`node scripts/lock-tests.mjs snapshot <scratchpad>/lock-<N>-before.json`. Keep the path as
+`BEFORE`. Step 2 reads `@test-writer`'s edits against it. Exit 2 here is a stop before any agent
+has run: the existing tests hold something the lock cannot read, and that is fixed first.
+`Cargo.toml` is locked whole, so a task that changes it does so before this snapshot.
 
 ## Step 1 — Readback
 
@@ -144,34 +160,45 @@ here the spec has already settled it.
 Check, in order:
 
 1. **Coverage both ways.** Every acceptance criterion has at least one test, except one marked
-   `(by hand)`, which is checked at the hand-back instead. Every test names the criterion it
-   covers. A gap either way goes back to `@test-writer`. A test file that existed before this run
-   and appears in its Files list: read `git diff "$START" -- <file>`. Tests added to it, with the
-   imports and helpers they need, are new tests, not an edit — but only in a file Interfaces'
-   Files touched names; added anywhere else goes back to `@test-writer`. A change to an existing
-   test's name or body is an edit, and that is a stub report, not a test — unless Interfaces'
+   `(by hand)`, which is checked at the hand-back instead. A `(yours)` criterion has its tests like
+   any other. Every test names the criterion it covers. A gap either way goes back to
+   `@test-writer`. Then run `node scripts/lock-tests.mjs verify "$BEFORE"`: it lists every test
+   block `@test-writer` added, changed or removed. An `added` block is new tests — but only in a
+   file Interfaces' Files touched names, or a new file under `tests/`; added anywhere else goes
+   back to `@test-writer`. A `changed` block existed before this run: read
+   `git diff "$START" -- <file>`. Test functions added inside it, with the `use` lines and helpers
+   they need, are new tests, not an edit. A change to an existing test's name, body or attributes
+   is an edit, and so is a `removed` block; that is a stub report, not a test — unless Interfaces'
    Removes line lists it, and the edit is the deletion or retarget that line names. A retargeted
    test keeps its own name, with no criterion id, and is exempt from the naming rule and from
    check 2: it guards behaviour that already exists, so it may pass against the stubs.
 2. **Fails for the right reason.** Run the `Proof command` yourself, against the stubs. Each test
-   must fail on its own assertion — a wrong value, a missing row, a call that didn't throw — not on
-   a missing file or function, a typo, a bad import path, or broken setup. The one exception is a
+   must fail on its own assertion — a wrong value, a missing row, an `Err` where an `Ok` was due —
+   not on a compile error, a panic from a stub, a missing fixture, or broken setup. In Rust a
+   compile error fails every test in the crate at once, for no test's own reason: the crate must
+   build against the stubs. The one exception is a
    column or table this task creates, which no stub can provide: "does not exist" is its right
    reason, when the report marks it new in this task. A test that passes
    against the stubs is accepted only beside the failing partner the report names, the test that
    proves the behaviour it guards. Anything else goes back to `@test-writer`.
-3. **Lock the tests.** Commit every file `@test-writer` created, edited or deleted, except the stubs, on its
-   own: `git add <files>` then `git commit -m "build-task: tests (squashed at ship)"`. Record
-   `TESTS=$(git rev-parse HEAD)`, and keep the test files: every file a `@test-writer` report in
-   this run lists under Files. The commit is the lock: it holds the original bytes, so a
-   violation can be undone, and `git diff` against it needs no working directory. Step 5 folds it
-   back into one commit before `/kill-this`, so `@code-review` still sees the tests. The stubs stay
-   in the tree, uncommitted: they are production files, and `@implementer` replaces them.
+3. **Lock the tests.** Run `cargo fmt`, so a later format by `@implementer` cannot reflow a test
+   block. Commit every file `@test-writer` created, edited or deleted, **stubs included**, on its
+   own: `git add <files>` then `git commit -m "build-task: tests (squashed at ship)"`. Inline tests
+   share a file with the code they test, so the stubs cannot be left out of the commit the way a
+   separate test file allowed. Record `TESTS=$(git rev-parse HEAD)`, and keep the test files: every
+   file a `@test-writer` report in this run lists under Files or Stubs. Then
+   `node scripts/lock-tests.mjs snapshot <scratchpad>/lock-<N>.json`, and keep the path as `LOCK`.
+   The two halves do different jobs. The snapshot is what Step 4 checks: a `git diff` of a file
+   holding both tests and code cannot tell an edited test from the implementation, and the
+   snapshot only sees the test blocks. The commit holds the original bytes, so a violation can be
+   undone. Step 5 folds it back into one commit before `/kill-this`, so `@code-review` still sees
+   the tests. `@implementer` replaces the stubs' bodies; only the test blocks are locked.
 
 ## Step 3 — Implement
 
 Spawn `@implementer` with: the issue number, the test file list, the stub list, and the failing
-output from Step 2.
+output from Step 2. When a criterion is marked `(yours)`, also its id and its stub, with the
+instruction: **leave that stub as written; its tests stay red.** The operator writes it in Step 4.5.
 
 It returns one of:
 
@@ -186,30 +213,58 @@ It returns one of:
   `START`. They decide whether the spec or the test was wrong, how it is fixed, and whether the
   build comes back. A Stop is not a failed round. A run started again after it keeps this run's
   `START`, so Step 5 still folds the earlier commits in. When they rule a test wrong, the fix goes
-  to `@test-writer` with their ruling as its brief and the stub list, saying the stubs went into
-  the stash with the build: it fixes that test and writes the stubs again. Step 2's checks 1 to 3
-  run on what it returns; the Lead commits it, that commit is the new `TESTS`, and any file it
-  lists joins the test files. If the build comes back, first put each stub file back as `HEAD`
-  has it (`git checkout HEAD -- <file>`, or delete one `HEAD` lacks), then `git stash apply
-  "$REF"`. Then Step 3 again. A test the Lead fixes by hand is never locked, and Step 4 then reads
-  it as a violation.
+  to `@test-writer` with their ruling as its brief and the stub list; the stubs are committed with
+  the tests, so they are still in the tree. Step 2's checks 1 to 3 run on what it returns; the
+  Lead commits it, that commit is the new `TESTS`, its snapshot the new `LOCK`, and any file it
+  lists joins the test files. If the build comes back, `git stash apply "$REF"`; where it
+  conflicts inside a test block, keep `HEAD`'s block, never the stash's. Then Step 3 again. A test
+  the Lead fixes by hand is never locked, and Step 4 then reads it as a violation.
 
 ## Step 4 — Verify
 
-1. `git diff --quiet "$TESTS" -- <the test files>` — any change to a test file fails the task.
-   The list is kept, not read from the `TESTS` commit, because after Step 5's fold a review
-   route's `TESTS` commit holds only its own new test. Set the implementation aside with
-   `git stash push --include-untracked -m "build-task <N>: violation"` (the tests come back as
-   committed; the stubs go with the implementation), find its `REF` by that message as Step 3 does, then
-   `git stash drop "$REF"`, and re-run Step 3 once, telling `@implementer` the stubs are gone
-   and giving no stub list. A second violation: stop and tell the operator.
-2. Run the `Proof command` yourself. Green, or back to Step 3 with the failure output.
-3. Read `@implementer`'s "Stubs left as stubs". Anything but `None` is an empty function that no
-   test needed and would ship as a silent no-op: remove it, or bring it to the operator.
+1. `node scripts/lock-tests.mjs verify "$LOCK"` — any test block added, changed or removed fails
+   the task. Set the implementation aside with
+   `git stash push --include-untracked -m "build-task <N>: violation"` (the tree goes back to the
+   `TESTS` commit: the tests and the stubs as committed), find its `REF` by that message as Step 3
+   does, then `git stash drop "$REF"`, and re-run Step 3 once, telling `@implementer` its build was
+   discarded for touching the test block the lock named, and giving the stub list again. A second
+   violation: stop and tell the operator. Exit 2: stop and tell the operator what it printed.
+2. Run the `Proof command` yourself. Green, or back to Step 3 with the failure output. Until the
+   operator has written the `(yours)` code in Step 4.5, its tests are the exception: they must
+   still fail on their own assertion against its stub. Passing then, `@implementer` wrote it: back
+   to Step 3, telling it to restore the stub. After Step 4.5 they are green like the rest.
+3. Read `@implementer`'s "Stubs left as stubs". Anything but `None`, or the `(yours)` stub before
+   Step 4.5, is an empty function that no test needed and would ship as a silent no-op: remove it,
+   or bring it to the operator.
 
 **Two failed `@implementer` rounds on the same tests: stop and ask.** Something is wrong with the
 spec, the tests, or the task's size, and a third round is spending the allowance to find out
 which.
+
+## Step 4.5 — Yours
+
+Only when a criterion is marked `(yours)` (DEC-R003). Everything else is built and green, so the
+operator has working Rust around the gap to read.
+
+1. **Stop and hand it over.** In one reply: the criterion, word for word; its tests by name and
+   file; the stub to fill, as `path:line` and its signature; the code already built that it will
+   call or sit beside; and, short and conversational, the Rust concepts it needs that the operator
+   has not met yet, each acronym spelled out the first time. Then wait. Do not write any of it, not
+   even a hint in code: a sketch is the answer.
+2. **The lock binds the operator too.** If they believe a test is wrong, that is Step 3's Stop
+   route, with them as the one who stopped.
+3. **When they say it is done**, run `node scripts/lock-tests.mjs verify "$LOCK"`, then the
+   `Proof command`, then `cargo fmt --check` and `cargo clippy --all-targets -- -D warnings`, so
+   nothing waits to surprise them in `/kill-this`'s gate.
+4. **Review it as a teacher.** The compiler first: if it does not build, or clippy objects, take
+   the first message only, say in plain words what it means and what it is protecting them from,
+   and wait. Once it builds clean and the proof is green: one concept at a time, one reply each —
+   what the code does well and why it is idiomatic, then the one change most worth making, with
+   the reason. Never rewrite their code; a change is theirs to make. The review ends when they say
+   so.
+5. Their code ships as it stands once the proof is green. `@code-review` reads it in `/kill-this`
+   like any other code, and a finding on it goes back to them, not to `@implementer`. After any
+   fix, Step 4 runs again with the `(yours)` tests in the green set.
 
 ## Step 5 — Ship
 
@@ -221,7 +276,7 @@ own on top. Then run `/kill-this`. When it reaches code-review findings, route e
 
 | Finding | Goes to |
 |---|---|
-| Real bug a test should have caught | `@test-writer` (new test, no stubs, in the test file the Lead's brief names — it must fail against the current code on its own assertion; the Lead commits it on its own; `TESTS` is that commit, and its file joins the test files), then `@implementer` |
+| Real bug a test should have caught | `@test-writer` (new test, no stubs, in the test block or file the Lead's brief names — it must fail against the current code on its own assertion; the Lead commits it on its own; `TESTS` is that commit, its snapshot the new `LOCK`, and its file joins the test files), then `@implementer` |
 | Real bug, tests are fine | fresh `@implementer`, finding as its brief |
 | One-line cleanup, naming, a constant | fix it yourself |
 | Architectural | escalate to `@architect`, as `@code-review` already says |
@@ -241,7 +296,8 @@ Print it every time, before the hand-back, and append it to the pull request bod
   test-writer   — <tests> tests across <criteria> criteria
   stubs         — <n> written, <n> left as stubs, <n> tests passing beside a partner
   implementer   — <rounds> rounds, <stops> stops (a run started again after a Stop counts it)
-  test lock     — intact | violated (<file>)
+  yours         — none | AC<k>, <compile rounds> compile rounds, <review replies> review replies
+  test lock     — intact | violated (<file> — <block>)
   review routes — <n> to test-writer, <n> to implementer, <n> fixed by Lead
   cost          — <cost.mjs>
 ```

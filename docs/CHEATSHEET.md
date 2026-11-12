@@ -1,16 +1,17 @@
-JIG WORKFLOW CHEATSHEET                                  v6
+CENTERLINE-RS WORKFLOW CHEATSHEET      jig v6, adapted for Rust
 
   /its-alive  ->  [ work -> /kill-this -> /save-this -> /clear ] ...  ->  /its-dead
 
 
 SESSION
   /its-alive       start. opens the session file, reads context,
-                   runs the drift + permission-policy checks,
                    recommends a task. waits for confirmation.
   /build-task      behaviour task, spec walked; writes it to the
                    issue. @test-writer
                    writes failing tests, @implementer makes them
-                   pass, the Lead verifies and runs /kill-this.
+                   pass, the test blocks locked by lock-tests.mjs.
+                   a (yours) criterion waits for you to write it.
+                   the Lead verifies and runs /kill-this.
                    running it approves the spec.
   /kill-this       per task. build + commit + PR + @code-review.
                    run it once per task, not once per session.
@@ -27,7 +28,7 @@ PHASE
                    retro (numbers, what happened, your take,
                    PM read), bump.
 
-SEMVER  ( needs package.json with a version field )
+SEMVER  ( Cargo.toml [package] version, via scripts/version.mjs )
   /bump-major      breaking change. manual. tag on main.
   /promote-production  main -> production ff-merge + push, then waits for the deploy.
                    ( needs origin/production )
@@ -48,6 +49,8 @@ GATES  ( npm run verify )
   check:denied     docs spelling a denied command
   check:context    paths cited by the always-loaded files
   check:docs       rosters, links, and the rest of the doc set
+  test:scripts     lock-tests.mjs and version.mjs, on node --test
+  cargo            fmt --check, clippy -D warnings, test, build
 
 THE STOP
   proof passes -> the session runs /kill-this itself, then

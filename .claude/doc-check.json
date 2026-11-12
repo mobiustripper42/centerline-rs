@@ -1,15 +1,24 @@
 {
-  "_comment": "check-docs config. Copied once from jig's scaffold, then owned by this project. Set repo to <owner>/<name>. rosters: which docs claim a COMPLETE skill/agent roster (check-docs verifies them both ways). historical: docs whose citations describe a past state on purpose and are exempt from the live-path check, each with a reason. knownForeign / knownForeignAgents: slash commands and agents named in docs that belong to other tools, so the roster check does not flag them. Every project's copy differs; that is the point.",
-  "repo": "<owner>/<name>",
+  "_comment": "check-docs config, owned by this project. rosters: which docs claim a COMPLETE skill/agent roster (checked both ways). historical: docs whose citations describe another place or time on purpose, exempt from the live-path check, each with a reason. knownForeign: slash commands named in docs that belong to other tools.",
+  "repo": "mobiustripper42/centerline-rs",
   "rosters": {
     "CLAUDE.md": {
       "skills": true,
       "agents": true
+    },
+    "docs/AGENTS.md": {
+      "skills": true,
+      "agents": true
+    },
+    "docs/CHEATSHEET.md": {
+      "skills": true,
+      "agents": false
     }
   },
   "historical": {
     "docs/RETROSPECTIVES.md": "per-phase record of what was true at phase close",
-    "docs/PROJECT_PLAN.md": "closed task rows cite what they retired"
+    "docs/PROJECT_PLAN.md": "closed task rows cite what they retired",
+    "docs/SPEC.md": "Overview through Data Model are carried word for word from the TypeScript repo, and cite its paths"
   },
   "knownForeign": [
     "clear",
@@ -18,6 +27,7 @@
     "help",
     "init",
     "mcp",
+    "model",
     "review",
     "security-review"
   ]

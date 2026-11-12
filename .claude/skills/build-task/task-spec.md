@@ -12,7 +12,7 @@ what it must reuse, and to search the tests for everything it removes — readba
 removal checks are the second look, not the first. Walk it in stops, one per reply, and wait for
 the operator's answer at each:
   1. Summary and Job, together
-  2. Acceptance criteria
+  2. Acceptance criteria, including which one, if any, is (yours)
   3. Interfaces — the [Lead] calls first, each a plain sentence: what changes and why, no file
      names. The file and signature lists follow, for reference; the operator reads the calls and
      skims the lists.
@@ -42,10 +42,16 @@ Every line in the sections below carries its source:
 ## Acceptance criteria
 <!-- Numbered. One behavior each. Tests will name these ids. Mark a criterion only a person can
      check — on a device, by eye — with `(by hand)`: it gets no test and is checked at the
-     hand-back. -->
+     hand-back.
+     Mark at most one criterion `(yours)` when the operator wants to write its code (DEC-R003).
+     Optional, and not `(by hand)`: it gets tests and a stub like any other, @implementer builds
+     every other criterion and leaves its stub alone, and the run then waits while the operator
+     writes it. Pick one small enough to finish in a sitting, whose stub sits in a file the rest of
+     the task already builds. -->
 - **AC1** — given …, when …, then …
 - **AC2** — …
 - **AC3** — (by hand) on the phone, …
+- **AC4** — (yours) given …, when …, then …
 
 ## Interfaces
 <!-- Exact, from the code — not from memory. The test-writer builds against this list.
@@ -55,8 +61,8 @@ Every line in the sections below carries its source:
      Reuses, if it exists already), and each place points at it. Two descriptions with no home
      named get built twice, and no search of the code finds that copy, because it does not exist
      yet. -->
-- **Files touched:** `path/to/file.ts`, …
-- **New or changed signatures:** `functionName(arg: Type): ReturnType`, route `POST /api/…`, …
+- **Files touched:** `src/<module>.rs`, `tests/<name>.rs`, …
+- **New or changed signatures:** `pub fn function_name(arg: Type) -> ReturnType`, route `POST /api/…`, …
 - **Data shapes:** table/column, type, or JSON shape the tests will assert on
 - **Reuses:** existing functions, components, constants and rules this must call rather than re-create
 - **Removes:** each export, constant, copy or config key, route, page or file this deletes or renames, and every test that uses it, with what happens to that test: deleted, or retargeted to what replaces it. "None" when nothing goes

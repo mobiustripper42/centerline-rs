@@ -231,54 +231,6 @@ When a recommendation *is* wanted (cold open), grep `docs/PROJECT_PLAN.md`:
 
 If the project uses phase-rituals: `gh issue list --label "phase:current" --state open --json number,title,labels --limit 50`.
 
-## Step 7.5 — Drift against jig
-
-Resolve the jig checkout (skill arg → `../jig` sibling → `$JIG_REPO`), then:
-
-```
-node <jig>/scripts/drift.mjs .
-```
-
-Read-only. It prints which `logic`-class files differ from the templates, which are absent, and whether this project owes a schema migration.
-
-**Report it in the briefing only when there is something to report** — a `DRIFT` count, or a `jig-version` gap. Silence when clean; a line every session that always says "nothing differs" is a line nobody reads by the third one.
-
-**Why this check lives here rather than in jig.** A repo's drift only matters when you are about to work in it, and that is exactly when this runs. A dormant project can sit twelve template changes behind for months at no cost — the day you open it for a one-line bugfix, the briefing says so and you decide whether to sync first or ignore it. That also means there is no fleet list to maintain, and no report enumerating repos nobody has touched since spring.
-
-**It reports; it does not act.** Do not sync, do not copy, do not offer to. Deciding what should cross is the part that needs a person, and this exists so that person is not guessing at the state. When they decide, the copy is done from a session *in jig*, which commits on a branch in this repo and opens the pull request here. Not from this session: the bytes that cross are what jig already reviewed, so a jig session copying them is moving reviewed code, while this session writing them is authoring a change to workflow files it does not own.
-
-If jig doesn't resolve, skip silently and say so in Context. A session must never be blocked by a checkout not being on this machine.
-
-### Step 7.6 — Permission policy
-
-Same resolved jig checkout, one more read-only command:
-
-```
-node <jig>/scripts/settings-policy.mjs --all .
-```
-
-It compares against `.claude/settings.json` — the master — in the two places that govern this session: `~/.claude/settings.json` (**user settings**, this machine, every project) and `<repo>/.claude/settings.json` (**shared project**, committed, and the only policy that travels with the repo).
-
-| checked | where | repairable by `--write` |
-|---|---|---|
-| `permissions` | both levels | yes |
-| `theme`, `effortLevel`, `tui`, `agentPushNotifEnabled`, `enabledPlugins` | user settings only — machine preferences | yes |
-| retired machinery still wired — a `SessionEnd` tape hook, a leftover queue | user settings only | **no** — remove by hand |
-
-**`outputStyle` is in `MACHINE_KEYS` and is deliberately absent from the master, so it is neither checked nor written.** It was in the master until 2026-09-18, and because a project-level `.claude/settings.json` beats the user-level one, every installed project carried jig's answer and no machine default was ever consulted. Whoever is at the keyboard picks the style; nothing that travels should carry one. Setting it is a hand-edit of `~/.claude/settings.json`, and `--write` will not touch it.
-
-A deliberate per-repo override in `.claude/settings.local.json` — `Explanatory` while designing, say — is **not** reported: those keys are read at the user level only.
-
-**Report only when something is not current.** Silence on `Current.`, same reason as Step 7.5.
-
-**On a `STALE` or `ABSENT` result, surface the fix and stop there** — `node <jig>/scripts/settings-policy.mjs --write <path>`. Do not run it. It writes the file that carries this machine's hooks, and it is the user's call whether a policy change lands now or after the task in hand.
-
-**Two things worth knowing when you report it.** Permissions are read once at launch, so a repair applies at the *next* session, not this one — say so rather than implying the session just got safer. And the shared-project file is the one that covers a machine whose user settings are not installed yet — it travels with the repo, so an absent one there is no seatbelt at all rather than a stale one.
-
-**Why this is here and not a fleet report.** Nothing can enumerate a machine you are not sitting at — but the box you *are* on is readable, and it is the only one you can fix. Checking at session start means every machine checks itself, every session, with no list to maintain and nothing to remember.
-
-If jig doesn't resolve, skip silently — same rule as Step 7.5.
-
 ## Step 8 — Present briefing
 
 Emit the briefing as plain prose lines, never inside a code fence — a fence does not wrap on a phone. Drop the leading `>`; it marks the example boundary here. The shape:
