@@ -1,0 +1,10 @@
+/target
+node_modules/
+.DS_Store
+*.log
+
+# `.claude/settings.local.json` is per-machine and never shared.
+.claude/settings.local.json
+
+# The sessions branch is checked out here by /its-alive.
+.sessions-worktree/

@@ -14,5 +14,70 @@
 #
 # No baseline: this project starts empty, so the gate runs at full strength from the first word.
 # Never run `scripts/gen-dictionary-baseline.mjs` here.
+#
+# Acronyms are registered here even when common, because Spink is new to Rust and asked for every
+# acronym defined the first time; this file is where that definition lives.
 
-[]
+- term: OSM
+  says: OpenStreetMap, the open map the streets are loaded from
+  not: []
+
+- term: GPS
+  says: the satellite positioning a phone or watch records a ride with
+  not: []
+
+- term: HTML
+  says: the markup a web page is written in
+  not: []
+
+- term: DDL
+  says: "data definition language: the SQL that creates and alters tables, as opposed to the SQL that reads and writes rows"
+  not: []
+
+- term: XML
+  says: a text format of nested tags, like HTML but for data
+  not: []
+
+- term: GPX
+  says: "GPS Exchange Format: an open XML standard for recorded points and lines. Gaia exports tracks in it"
+  not: []
+
+- term: HTTP
+  says: how the app and the phone ask a server for a page or data; plain, it is not encrypted unless something underneath is
+  not: []
+
+- term: API
+  says: the routes a program calls to get data, as opposed to the pages a person reads. Here, the server's /api routes the phone and the map call
+  not: []
+
+- term: JSON
+  says: the text format the API answers in. The Rust server must answer with the same JSON the TypeScript one does
+  not: []
+
+- term: URL
+  says: the address of a page or an API route
+  not: []
+
+- term: SQL
+  says: the language the database is queried in. The coverage SQL is copied from the TypeScript repo verbatim
+  not: []
+
+- term: SRID
+  says: the number naming a geometry's coordinate system. Every geometry here is 4326, plain longitude and latitude
+  not: []
+
+- term: GEOS
+  says: the geometry library PostGIS calls to cut, join and compare shapes; its version decides some results
+  not: []
+
+- term: UTC
+  says: the world clock time with no time zone; timestamps are stored in it and shown in Cleveland time
+  not: []
+
+- term: HTMX
+  says: a small JavaScript library that lets a plain HTML page swap in a fragment the server sends, instead of a client app rendering it
+  not: []
+
+- term: VPS
+  says: a rented virtual server; mill-dev, the dev machine, is one
+  not: []

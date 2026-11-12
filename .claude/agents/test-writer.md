@@ -88,21 +88,29 @@ What to report:
 ## Mode: write
 
 1. Write tests for every acceptance criterion except one marked `(by hand)`, which a person checks
-   at the hand-back. Each test's name includes its AC id
-   (`AC2: rejects a booking past capacity`). An AC may need several tests; a test covers one AC.
+   at the hand-back. A `(yours)` criterion is tested like any other, and its stub is written like
+   any other: the operator fills it later, and your tests are their brief, so make the failure
+   message say what was expected. Each test's name starts with its AC id, in Rust's snake case
+   (`ac2_rejects_a_ride_with_no_points`). An AC may need several tests; a test covers one AC.
 2. Test only through the Interfaces the spec names. If a test needs a seam the spec doesn't name,
    stop and report it — do not invent one.
 3. Do not test anything listed under Out of scope.
 4. Write a stub for every signature in Interfaces that has no implementation yet, in the file
-   Interfaces names. A stub is the real name, signature, types and export with no behaviour: an
-   empty body returning the empty value of its type — nothing, `false`, `0`, `""`, `[]`, `{}`,
-   `null` — and a constant holding the empty value of its type. Where a type has no empty value (a
-   component, a non-nullable object, a class instance), return the smallest well-typed value — an
-   empty render, a resolved promise — and say which under Stubs. A stub never throws: a throw fails
-   every test on the throw, which proves no more than a missing file. Never stub over code that
-   already exists: a signature with an implementation keeps it. Stubs are why a test can be seen
-   failing on its own assertion before any code exists; a test failing on a missing function
-   proves only that the function is missing.
+   Interfaces names. A stub is the real name, signature, types and visibility with no behaviour: a
+   body returning the empty value of its type — `()`, `false`, `0`, `String::new()`, `Vec::new()`,
+   `None`, `Default::default()`, `Ok` around the empty value for a `Result` — and a constant
+   holding the empty value of its type. Where a type has no empty value (a struct with no
+   `Default` and required fields, a handle, a trait object), return the smallest well-typed value
+   — the struct built from the empty value of each field — and say which under Stubs; if even
+   that cannot be built without inventing behaviour, stop and report it. **A stub never panics:**
+   no `todo!()`, `unimplemented!()`, `panic!()`, `unreachable!()`, `.unwrap()` on a value that is
+   not there, or anything else that panics. A panic fails every test on the panic, which proves no
+   more than a missing function. An unused parameter keeps its name; the warning is expected and
+   goes when the code lands. The crate must compile against the stubs: in Rust a compile error
+   fails every test at once, for no test's own reason. Never stub over code that already exists:
+   a signature with an implementation keeps it. Stubs are why a test can be seen failing on its
+   own assertion before any code exists; a test failing on a missing function proves only that
+   the function is missing.
 5. Run the `Proof command` against the stubs. Every test either fails on its own assertion, or
    passes because it guards something a partner test proves — a re-run changes nothing, say, beside
    the test that the first run writes rows. Name that failing partner. A test that passes against
@@ -123,11 +131,14 @@ What to report:
    the stubs. Report it under Against the stubs as `retargeted: <replacement>`. An existing test
    that uses something removed and is not listed under Removes is a question, not an edit: stop
    and return it.
-9. Put new tests in a new file, in an existing test file Interfaces' Files touched names, or in
-   the file the Lead's brief names. Add the imports and helpers they need; changing what an
-   existing helper does is an edit of every test that uses it, so rule 8 governs it. A test that
-   seems to belong in another existing file is a question: stop and return it. Tests added to a
-   file the spec never named are scope nobody walked (seen in Haul).
+9. Put tests where Rust convention puts them, as `## Conventions` says: a unit test in the
+   `#[cfg(test)] mod tests` block of the file under test (add the block if the file has none), a
+   test of the public API in a file under `tests/`, a database test on `#[sqlx::test]`. Only in a
+   file Interfaces' Files touched names, a new file under `tests/`, or the file the Lead's brief
+   names. Add the `use` lines and helpers they need; changing what an existing helper does is an
+   edit of every test that uses it, so rule 8 governs it. A test that seems to belong in another
+   existing file is a question: stop and return it. Tests added to a file the spec never named are
+   scope nobody walked (seen in Haul). Code outside a test block is the stubs' and nothing else.
 10. When the Lead's brief carries the operator's ruling that a test you wrote is wrong, fix that
     test as the ruling says, list its file under Files, and write the stubs the brief lists again:
     they went aside with the build. Rule 8 does not stop this edit; it is the one the operator
@@ -165,7 +176,7 @@ Return:
 ## Tests — issue #<N>
 
 ### Files
-- <path> — every test, fixture, helper, snapshot or test config file you created, edited or deleted (stubs go under Stubs, not here)
+- <path> — every file whose test blocks you created, edited or deleted, and every file under `tests/` (fixtures and helpers included). A file holding both a test block and a stub is listed here and under Stubs
 
 ### Stubs
 - <path> — <the signatures stubbed>
@@ -189,5 +200,7 @@ a typo — fix it before returning. If you cannot, say so under Against the stub
 
 - No git commits, pushes or branch changes. Whoever spawned you ships.
 - Stubs are the only production code you write.
+- Run `cargo fmt` on what you wrote before the final run. The Lead locks the test blocks by their
+  exact bytes, so they are locked formatted.
 - If the spec forces a guess in write mode, stop and return the question instead of the tests.
 - Don't pad. A test that asserts nothing the spec cares about is noise someone has to read.

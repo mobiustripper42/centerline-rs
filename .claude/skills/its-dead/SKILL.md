@@ -136,7 +136,7 @@ This block is executed by `<jig>/scripts/keep-tape.test.mjs`, which extracts it 
 
 **Nothing reads the tape automatically.** No skill, no agent, no index, no drain. A human opens one in a chat session occasionally. Do not offer to read it, summarize it, or build anything that does.
 
-If the hook isn't installed on this machine the name file is simply never consumed, and `/its-alive` Step 7.6's policy check is what tells you — `settings-policy.mjs` reports the hook absent.
+If the hook isn't installed on this machine the name file is simply never consumed. Nothing in this repo checks for the hook: jig's policy checker is jig's tooling and is not carried here (DEC-R001).
 
 ## Step 5 — Commit + push the sessions branch (from the worktree)
 

@@ -2,7 +2,7 @@
 
 > **Read `.claude/CLAUDE-context.md` first.** It holds this project's name, stack, data model, commands, and any project-specific overrides to the workflow below. Treat it as authoritative for every project-specific fact. If it does not exist, stop and tell the user to create it from jig's `scaffold/claude/CLAUDE-context.md`.
 >
-> Nothing project-specific goes in this file — it is replaced wholesale on the next update, and anything added here is lost.
+> Nothing project-specific goes in this file. It is the workflow, owned by this repo (DEC-R001); the project's facts live in the context file, so either can change without rereading the other.
 
 ## Key Docs
 
@@ -16,7 +16,6 @@
 | `docs/AGENTS.md` | Agent and skill specs |
 | `docs/VELOCITY_AND_POKER_GUIDE.md` | Estimation methodology |
 | `sessions/*.md` | Per-session files, `YYYY-MM-DD-HHMM-<slug>.md`, on the orphan `sessions` branch via `.sessions-worktree/` |
-| `.claude/jig-version` | Which generation this project was installed at. Compare against jig's `jig-version` to see what migrations are owed |
 
 Project-specific docs are listed in `.claude/CLAUDE-context.md` under `## Additional Docs`. The shell names only docs every project has; naming one a whole project type lacks is a dead reference in every one of them.
 
@@ -81,7 +80,7 @@ Two things the gate cannot check, which is why they are here:
 
 **Task model:** PROJECT_PLAN.md is read at planning and written at retro, untouched mid-phase. Current tasks are GitHub Issues. The phase ends when its issues close.
 
-**Workflow fixes don't get made here.** A skill or shared agent that misbehaves in this project is not fixed in this project — those files are canonical in jig, no automation syncs them in either direction, and a local fix becomes invisible drift in a file meant to be identical everywhere. Say what broke. Do not edit the file here, and do not copy a fix in from jig yourself: fixing it is a deliberate act in jig, and bringing the fix here is a jig session's copy, asked for by name.
+**This repo owns its copy of the workflow** (DEC-R001). It started as a copy of jig generation 6 and was then adapted for Rust, so these skills and agents are this repo's to fix, and nothing syncs in either direction. A workflow fix is still its own task with its own pull request, never a side edit inside a feature task: say what broke, then fix it on a branch of its own. Whether a fix should also go to jig is the operator's call, made in a jig session.
 
 ## Agents
 
@@ -118,13 +117,13 @@ Adopting one: `git checkout -b production main && git push -u origin production`
 
 ## Versioning
 
-Every dev project carries a SemVer version in `package.json`, mirrored to a git tag on `main`.
+The version is SemVer, in the `version` line of `Cargo.toml`'s `[package]`, mirrored to a git tag on `main` (DEC-R004). `scripts/version.mjs` is the only thing that reads or writes it.
 
 - **Patch** — `/promote-production` on each ship, or `/retro` per merged pull request on projects that deploy straight off `main`.
 - **Minor** — `/retro` at phase close.
 - **Major** — `/bump-major`, with a rationale supplied.
 
-All tags land on `main` at bump time; `production` only ever receives an already-tagged commit. The skills gate on `package.json` having a `version` field and no-op silently without one — the field rather than the file, because "has a `package.json`" was only ever a proxy for "is a versioned thing", and the two came apart the first time a repo wanted a test runner without a version.
+All tags land on `main` at bump time; `production` only ever receives an already-tagged commit. `package.json` here is a private, version-less manifest for the doc gates, and no skill bumps it.
 
 ## Workflow Notes
 
@@ -198,15 +197,13 @@ Occasional dry humor and sarcasm welcome. One good line beats three forced ones.
 ~/.claude/output-styles/one-piece.md   → symlink to jig's copy             the file — jig is the versioned home
 ```
 
-**No repo carries either.** Jig's `.claude/settings.json` master defines no `outputStyle`, so `settings-policy.mjs` neither checks nor writes one, and `.claude/output-styles/**` is `jig-only`, so drift reports a project copy as NOT YOURS. The fix for a copy is deletion, never a sync. Edit the style in jig; the symlink means the edit is live at the next session start with nothing to copy.
+**No repo carries either.** This repo's `.claude/settings.json` defines no `outputStyle`, and it holds no `.claude/output-styles/` directory. A copy of the style file here would beat the machine's (below), so the fix for one is deletion. Edit the style in jig; the symlink means the edit is live at the next session start with nothing to copy.
 
 **Both are one-time hand steps per machine.** A fresh machine has neither until someone does this, with `<jig>` as that machine's jig checkout:
 
 ```
 mkdir -p ~/.claude/output-styles && ln -sfn <jig>/.claude/output-styles/one-piece.md ~/.claude/output-styles/one-piece.md
 ```
-
-**`settings-policy.mjs` checks the link, and only when the setting names a style jig ships.** Absent, a regular file, a link into another checkout, a link whose target is gone — each is a separate finding carrying the `ln -sfn` that fixes it. Reported, never repaired: `--write` edits `permissions` and the machine keys, and making a symlink in a home directory is not that. An unset `outputStyle` is silent, because nothing is reading the file. What it still cannot see is **which** style is on — that setting is deliberately unmanaged, so a link that is correct says the file is current, not that it is in use.
 
 **Precedence, lowest to highest.** For the setting: `~/.claude/settings.json`, then `<repo>/.claude/settings.json`, then `<repo>/.claude/settings.local.json`. For the file: `~/.claude/output-styles/` loses to `<repo>/.claude/output-styles/` — observed 2026-09-18, a repo holding a stale copy ran it over the machine's newer one. Both run the same way: the more specific location silently beats the machine. That is the trap. Jig shipped the key and the file until 2026-09-18, so setting either "at the machine level" did nothing, in any repo. A repo copy of the style file is therefore not untidy, it is the style that repo runs — delete it. If a style ever fails to take effect, look for the key or the file somewhere more specific than you looked.
 

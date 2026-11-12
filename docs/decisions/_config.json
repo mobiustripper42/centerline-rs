@@ -1,6 +1,13 @@
 {
   "spec": "docs/SPEC.md",
+  "numericIds": false,
+  "families": {
+    "R": 0
+  },
   "topics": [
+    "Workflow",
+    "Testing",
+    "Repo structure & versioning",
     "Open questions"
   ]
 }

@@ -56,9 +56,7 @@ Each promotion is a production release. First, is there anything new to ship?
 ```
 If equal, STOP: "production is already at `main` HEAD — nothing to ship."
 
-**Unversioned project** — no `package.json` at the repo root, **or one with no `version` field**. Check with `node -e "process.exit(require('./package.json').version ? 0 : 1)" 2>/dev/null || echo "not versioned"`. Skip the bump: `SHIP_TAG=$(git tag --points-at origin/main | grep '^v' | sort -V | tail -1)` — promote whatever tag is there, or none. Go to Step 4.
-
-The gate is the `version` field rather than the file, because a repo can carry a `private`, version-less manifest solely to get a test runner and still have nothing to version.
+**The version is read first:** `node scripts/version.mjs get`. It lives in `Cargo.toml`'s `[package]` (DEC-R004); a non-zero exit is a manifest to fix, so STOP and show the user what it printed. `package.json` here is a private, version-less manifest for the doc gates and is never bumped.
 
 **Ship-as-is:** if `main` HEAD already carries a `v*` tag (e.g. `/retro`'s minor or `/bump-major`, and nothing merged since), don't double-bump:
 ```
@@ -70,8 +68,9 @@ If `HEAD_TAG` is non-empty, set `SHIP_TAG="$HEAD_TAG"` and go to Step 4.
 ```
 git checkout main && git pull --ff-only origin main
 SHIPPING=$(git log --oneline origin/production..HEAD)   # PRs/commits this release ships
-NEW_VERSION=$(npm version patch --no-git-tag-version | tr -d 'v')
+NEW_VERSION=$(node scripts/version.mjs bump patch)
 ```
+A non-zero exit: STOP and surface what it printed.
 Prepend a `CHANGELOG.md` entry (create it with a literal `# Changelog` header if absent; read first and STOP if the header isn't literal) after the header:
 ```
 ## [<NEW_VERSION>] - <YYYY-MM-DD>
@@ -79,8 +78,7 @@ Prepend a `CHANGELOG.md` entry (create it with a literal `# Changelog` header if
 ```
 Commit, tag, push the trunk:
 ```
-git add package.json CHANGELOG.md
-[ -f package-lock.json ] && git add package-lock.json
+git add Cargo.toml Cargo.lock CHANGELOG.md
 git commit -m "Release v<NEW_VERSION>"
 git tag "v<NEW_VERSION>"
 git push origin main

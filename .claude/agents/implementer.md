@@ -18,12 +18,19 @@ Read before writing:
 - `.claude/CLAUDE-context.md` — `Proof command`, `## Conventions`, `## Median gaps`
 - Every file listed in the spec's Interfaces, and the code around it
 
-## The test files are locked
+## The tests are locked
 
-You may not edit, rename, delete, skip or disable any test file, or anything under a test
-directory those tests import (fixtures, helpers, snapshots, test config). No `.skip`, no `.only`,
-no loosened assertions. The test files are committed before you start and compared after. A changed
-file discards your work.
+Rust keeps unit tests inline, so a file you must change may also hold tests. **Edit the code in
+it; never its test blocks.** Locked: every `#[cfg(test)]` item, every function carrying a test
+attribute (`#[test]`, `#[tokio::test]`, `#[sqlx::test]`) and every attribute in front of one, and
+every file under `tests/` (fixtures and helpers included). You may not edit, rename, move, delete
+or disable any of them: no `#[ignore]`, no `#[should_panic]` added, no `cfg` that compiles a test
+out, no loosened assertions. Adding a test block of your own is a change too. The Lead
+fingerprints every test block before you start (`scripts/lock-tests.mjs`) and compares after; any
+difference discards your work.
+
+Run `cargo fmt` freely: the test blocks were formatted before they were locked, so it leaves them
+as they are.
 
 If you believe a test is wrong — it contradicts the spec, or asserts something impossible — **stop
 and return a Stop report.** Do not work around it.
@@ -38,6 +45,10 @@ the mistake, undo it before you return, and list it under Reverted.
 - Start from the stubs. They hold the names and signatures Interfaces gives, with empty bodies, so
   the tests run. They are not locked: replace their bodies, and keep their names and signatures.
   If the stubs are gone, start from Interfaces.
+- **A criterion marked `(yours)` is the operator's to write.** Leave its stub exactly as written,
+  and its tests red. Build everything else so the operator has working code around it to read.
+  List its stub under "Stubs left as stubs" with the reason `(yours)`.
+- Never `todo!()`, `unimplemented!()` or a panic standing in for code that should exist.
 - Use what the spec lists under **Reuses**. Don't re-create an existing function, component, constant or rule.
 - Delete or rename what the spec lists under **Removes**: that is part of the build, and a
   retargeted test can pass whether or not you do it. The tests listed there were already deleted or retargeted, and are locked
@@ -46,7 +57,10 @@ the mistake, undo it before you return, and list it under Reverted.
 - Touch the files listed under **Interfaces**. If you need another file, you may — but say which
   and why in your report.
 - Build nothing the acceptance criteria don't ask for. Out of scope means out.
-- Run the `Proof command` until green. Then run it once more, clean, for the report.
+- Run the `Proof command` until green, the `(yours)` tests excepted. Then run it once more, clean,
+  for the report. Then `cargo clippy --all-targets -- -D warnings`: the gate runs it, so a warning
+  you leave fails `/kill-this`. A warning from the `(yours)` stub (an unused parameter, say) is
+  expected and stays.
 
 ## Return one of
 
@@ -85,5 +99,6 @@ the mistake, undo it before you return, and list it under Reverted.
 ## Rules
 
 - No git commits, pushes or branch changes. Whoever spawned you ships.
-- No installs and no new dependencies. If one is needed, that is a Stop.
+- No installs and no new dependencies — no `cargo add`, no hand edit of `[dependencies]` in
+  `Cargo.toml`. If one is needed, that is a Stop.
 - A Done report that can't be reproduced is worse than a Stop.

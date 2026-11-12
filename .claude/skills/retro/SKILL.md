@@ -159,15 +159,13 @@ git push origin <BRANCH>
 
 ## Step 9 — Version bumps (versioned projects only)
 
-Run only if the repo root has a `package.json` **with a `version` field** (versioned-project signal):
+The version lives in `Cargo.toml`'s `[package]`, and `scripts/version.mjs` is the only thing that reads or writes it (DEC-R004). Check it reads:
 
 ```
-node -e "process.exit(require('./package.json').version ? 0 : 1)" 2>/dev/null || echo "not versioned"
+node scripts/version.mjs get
 ```
 
-If it prints `not versioned`, skip Step 9 entirely. The gate is the field, not the file: a repo can carry a `private`, version-less manifest purely to get a test runner, and bumping it would be inventing a version for something that has none.
-
-**`2>/dev/null` is deliberate and it does swallow one real error.** A `package.json` that is malformed JSON makes `require()` throw, which exits non-zero and reads here as "not versioned" — indistinguishable from a repo that simply has no version. That is the right default for a gate whose job is to decide whether to proceed, and a broken manifest will announce itself the moment anything else npm-shaped runs. Stated so the redirect isn't mistaken for carelessness.
+If it exits non-zero, STOP and show the user what it printed — a `Cargo.toml` the script refuses is a broken manifest to fix, not an unversioned repo to skip. `package.json` here is a private, version-less manifest for the doc gates and is never bumped.
 
 Resolve working branch — always the active trunk:
 ```
@@ -191,7 +189,7 @@ If `origin/production` exists, go straight to Step 9.3 (minor bump). Only projec
 
 For each PR in order, sequentially:
 
-a. **Bump patch:** `NEW_VERSION=$(npm version patch --no-git-tag-version | tr -d 'v')`.
+a. **Bump patch:** `NEW_VERSION=$(node scripts/version.mjs bump patch)`. A non-zero exit: STOP and surface what it printed.
 
 b. **CHANGELOG entry.** If `CHANGELOG.md` doesn't exist, create with `# Changelog\n\n`. Read it first; if it doesn't start with the literal `# Changelog\n` header, STOP and surface (don't guess where to insert). Prepend after the header:
    ```
@@ -201,8 +199,7 @@ b. **CHANGELOG entry.** If `CHANGELOG.md` doesn't exist, create with `# Changelo
 
 c. **Commit + tag (main only):**
    ```
-   git add package.json CHANGELOG.md
-   [ -f package-lock.json ] && git add package-lock.json
+   git add Cargo.toml Cargo.lock CHANGELOG.md
    git commit -m "Bump version to v<NEW_VERSION> (PR #<N>)"
    git tag "v<NEW_VERSION>"
    ```
@@ -212,7 +209,7 @@ c. **Commit + tag (main only):**
 
 After all PR patches:
 
-a. `NEW_VERSION=$(npm version minor --no-git-tag-version | tr -d 'v')` — zeros the patch (e.g. 1.2.7 → 1.3.0).
+a. `NEW_VERSION=$(node scripts/version.mjs bump minor)` — zeros the patch (e.g. 1.2.7 → 1.3.0). A non-zero exit: STOP and surface what it printed.
 
 b. CHANGELOG entry:
    ```
@@ -223,8 +220,7 @@ b. CHANGELOG entry:
 
 c. Commit + tag (main only):
    ```
-   git add package.json CHANGELOG.md
-   [ -f package-lock.json ] && git add package-lock.json
+   git add Cargo.toml Cargo.lock CHANGELOG.md
    git commit -m "Phase <N> close — bump to v<NEW_VERSION>"
    git tag "v<NEW_VERSION>"
    ```
@@ -245,7 +241,7 @@ Phase <N> closed.
 <the Step 2 numbers line, without the bold label>
 Issues: <closed>/<created> closed; <moved> moved to Phase <N+1>
 Retro: docs/RETROSPECTIVES.md
-Version: v<NEW_VERSION>  (versioned projects only; skipped per Step 9's gate)
+Version: v<NEW_VERSION>
 ```
 
 Then: "Phase <N+1> is next. Run `/start-phase <N+1>` now or stop here?" Let the user invoke `/start-phase` themselves — don't auto-chain.
