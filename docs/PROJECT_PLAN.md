@@ -48,7 +48,7 @@ Each phase gets its own section below, with its task table, when it starts. `/st
 
 | Task | Description | Points | Status | Notes |
 | --- | --- | --- | --- | --- |
-| 0.1 | Scaffold from jig generation 6 and adapt the workflow for Rust | 8 | [x] PR #1 | No issue: done before `/start-phase` existed here. Re-pointed at retro if 8 is wrong |
+| 0.1 | Scaffold from jig generation 6 and adapt the workflow for Rust | 8 | [x] PR #1 | No issue: done before `/start-phase` existed here. Re-point at /retro if 8 is wrong |
 
 ## Phase 1 — Hello, grace
 
