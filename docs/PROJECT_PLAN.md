@@ -56,10 +56,10 @@ An Axum server with `/health` showing the git sha, built in Docker, deployed on 
 
 | Task | Description | Points | Status | Notes |
 | --- | --- | --- | --- | --- |
-| 1.1 | Axum server answering `GET /health` with the git sha, on port 3501 | 3 | [ ] | The handler is a natural `(yours)` criterion. First `async fn` |
-| 1.2 | Dockerfile: a multi-stage build to one binary, the git sha baked in at build time | 3 | [ ] | |
-| 1.3 | Deploy on bee-grace: a compose service on 3501 and the TypeScript app's systemd timer pattern, watching this repo's `production` branch | 5 | [ ] | Sized before reading the TypeScript repo's deploy folder; re-point at spec if it is bigger |
-| 1.4 | The `production` branch, and a post-promote check that waits for `/health` to report the pushed sha | 2 | [ ] | Needs 1.3 |
+| 1.1 | Axum server answering `GET /health` with the git sha, on port 3501 | 3 | [#3](https://github.com/mobiustripper42/centerline-rs/issues/3) | The handler is a natural `(yours)` criterion. First `async fn` |
+| 1.2 | Dockerfile: a multi-stage build to one binary, the git sha baked in at build time | 3 | [#4](https://github.com/mobiustripper42/centerline-rs/issues/4) | |
+| 1.3 | Deploy on bee-grace: a compose service on 3501 and the TypeScript app's systemd timer pattern, watching this repo's `production` branch | 5 | [#5](https://github.com/mobiustripper42/centerline-rs/issues/5) | Sized before reading the TypeScript repo's deploy folder; re-point at spec if it is bigger |
+| 1.4 | The `production` branch, and a post-promote check that waits for `/health` to report the pushed sha | 2 | [#6](https://github.com/mobiustripper42/centerline-rs/issues/6) | Needs 1.3 |
 
 ## Rust learning track
 
