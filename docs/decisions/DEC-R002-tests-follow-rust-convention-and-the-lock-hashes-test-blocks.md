@@ -32,6 +32,6 @@ caught, and every file under `tests/`. Anything it cannot classify is an error, 
 The tests commit stays, now with the stubs in it, because it is what undoes a violation. The
 fingerprints are what detect one.
 
-The fingerprint is of exact bytes, so tests are formatted before they are locked.
+The fingerprint is of exact bytes, so tests are formatted before they are locked. `Cargo.toml`, `build.rs` and `.cargo/config.toml` are locked whole, because they decide what `cargo test` runs. Doctests are not locked, an accepted gap: tests here are `#[test]` functions, never doctests.
 
 See also jig's DEC-J015 and DEC-J024, whose split and stubs this keeps.

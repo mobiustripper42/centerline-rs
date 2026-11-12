@@ -157,7 +157,7 @@ git commit -m "Phase <N> retro — <points>/<planned> pts, drift <±D>"
 git push origin <BRANCH>
 ```
 
-## Step 9 — Version bumps (versioned projects only)
+## Step 9 — Version bumps
 
 The version lives in `Cargo.toml`'s `[package]`, and `scripts/version.mjs` is the only thing that reads or writes it (DEC-R004). Check it reads:
 

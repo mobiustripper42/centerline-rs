@@ -64,9 +64,15 @@ the task but is not the build. Committed, it is out of reach of the test lock an
 below, which would otherwise take it with the build and delete it. Step 5 folds it back in; a run
 abandoned before then leaves it as a commit on the branch.
 
+Then `cargo fmt --check`. A tree that is not formatted is a stop: Step 2 formats the crate before
+locking, and reformatting files `@test-writer` never touched would leave them out of the tests
+commit. Tell the operator; the fix is `cargo fmt` committed on its own, before the run.
+
 Then snapshot the tests as they stand, before `@test-writer` touches anything:
 `node scripts/lock-tests.mjs snapshot <scratchpad>/lock-<N>-before.json`. Keep the path as
-`BEFORE`. Step 2 reads `@test-writer`'s edits against it.
+`BEFORE`. Step 2 reads `@test-writer`'s edits against it. Exit 2 here is a stop before any agent
+has run: the existing tests hold something the lock cannot read, and that is fixed first.
+`Cargo.toml` is locked whole, so a task that changes it does so before this snapshot.
 
 ## Step 1 — Readback
 
@@ -223,12 +229,17 @@ It returns one of:
    does, then `git stash drop "$REF"`, and re-run Step 3 once, telling `@implementer` its build was
    discarded for touching the test block the lock named, and giving the stub list again. A second
    violation: stop and tell the operator. Exit 2: stop and tell the operator what it printed.
-2. Run the `Proof command` yourself. Green, or back to Step 3 with the failure output — except a
-   `(yours)` criterion's tests, which must still fail on their own assertion against its stub.
-   Passing, `@implementer` wrote it: back to Step 3, telling it to restore the stub.
-3. Read `@implementer`'s "Stubs left as stubs". Anything but `None`, or the `(yours)` stub, is an
-   empty function that no test needed and would ship as a silent no-op: remove it, or bring it to
-   the operator.
+2. Run the `Proof command` yourself. Green, or back to Step 3 with the failure output. Until the
+   operator has written the `(yours)` code in Step 4.5, its tests are the exception: they must
+   still fail on their own assertion against its stub. Passing then, `@implementer` wrote it: back
+   to Step 3, telling it to restore the stub. After Step 4.5 they are green like the rest.
+3. Read `@implementer`'s "Stubs left as stubs". Anything but `None`, or the `(yours)` stub before
+   Step 4.5, is an empty function that no test needed and would ship as a silent no-op: remove it,
+   or bring it to the operator.
+
+**Two failed `@implementer` rounds on the same tests: stop and ask.** Something is wrong with the
+spec, the tests, or the task's size, and a third round is spending the allowance to find out
+which.
 
 ## Step 4.5 — Yours
 
@@ -243,18 +254,17 @@ operator has working Rust around the gap to read.
 2. **The lock binds the operator too.** If they believe a test is wrong, that is Step 3's Stop
    route, with them as the one who stopped.
 3. **When they say it is done**, run `node scripts/lock-tests.mjs verify "$LOCK"`, then the
-   `Proof command`.
-4. **Review it as a teacher.** The compiler first: if it does not build, take the first error
-   only, say in plain words what it means and what the compiler is protecting them from, and
-   wait. Once it builds and the proof is green: one concept at a time, one reply each — what the
-   code does well and why it is idiomatic, then the one change most worth making, with the reason.
-   Never rewrite their code; a change is theirs to make. The review ends when they say so.
+   `Proof command`, then `cargo fmt --check` and `cargo clippy --all-targets -- -D warnings`, so
+   nothing waits to surprise them in `/kill-this`'s gate.
+4. **Review it as a teacher.** The compiler first: if it does not build, or clippy objects, take
+   the first message only, say in plain words what it means and what it is protecting them from,
+   and wait. Once it builds clean and the proof is green: one concept at a time, one reply each —
+   what the code does well and why it is idiomatic, then the one change most worth making, with
+   the reason. Never rewrite their code; a change is theirs to make. The review ends when they say
+   so.
 5. Their code ships as it stands once the proof is green. `@code-review` reads it in `/kill-this`
-   like any other code, and a finding on it goes back to them, not to `@implementer`.
-
-**Two failed `@implementer` rounds on the same tests: stop and ask.** Something is wrong with the
-spec, the tests, or the task's size, and a third round is spending the allowance to find out
-which.
+   like any other code, and a finding on it goes back to them, not to `@implementer`. After any
+   fix, Step 4 runs again with the `(yours)` tests in the green set.
 
 ## Step 5 — Ship
 

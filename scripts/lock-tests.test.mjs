@@ -4,7 +4,12 @@ import assert from 'node:assert/strict'
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
+import { spawnSync } from 'node:child_process'
+import { symlinkSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
 import { LockError, compare, findTestBlocks, snapshot, tokenize } from './lock-tests.mjs'
+
+const SCRIPT = fileURLToPath(new URL('./lock-tests.mjs', import.meta.url))
 
 const labels = (src) => findTestBlocks(src).blocks.map((b) => b.label)
 const texts = (src) => findTestBlocks(src).blocks.map((b) => b.text)
@@ -235,7 +240,7 @@ test('a test block added in a new file breaks the lock', () => {
 test('files under the crate tests/ directory are locked whole, fixtures included', () => {
   withCrate({ 'src/lib.rs': LIB, 'tests/api.rs': '#[test]\nfn api() {}\n', 'tests/fixtures/ride.gpx': '<gpx/>' }, (root) => {
     const before = snapshot(root)
-    assert.deepEqual(Object.keys(before.files), ['src/lib.rs', 'tests/api.rs', 'tests/fixtures/ride.gpx'])
+    assert.deepEqual(Object.keys(before.files), ['Cargo.toml', 'src/lib.rs', 'tests/api.rs', 'tests/fixtures/ride.gpx'])
     write(root, { 'tests/fixtures/ride.gpx': '<gpx></gpx>' })
     assert.deepEqual(compare(before, snapshot(root)), [{ change: 'changed', file: 'tests/fixtures/ride.gpx', label: 'whole file' }])
   })
@@ -268,5 +273,69 @@ test('a cfg(test) module whose file is missing is an error', () => {
 test('target/ is never read', () => {
   withCrate({ 'src/lib.rs': LIB, 'target/debug/build/x.rs': 'let s = "unterminated' }, (root) => {
     assert.doesNotThrow(() => snapshot(root))
+  })
+})
+
+// ── Review findings on PR for task 0.1 ───────────────────────────────────────────────────────
+
+test('a whole-file test module locks its child modules too', () => {
+  const files = {
+    'src/lib.rs': '#[cfg(test)]\nmod tests;\n',
+    'src/tests.rs': 'mod helpers;\n#[test]\nfn t() { helpers::h() }\n',
+    'src/tests/helpers.rs': 'pub fn h() {}\n',
+  }
+  withCrate(files, (root) => {
+    const before = snapshot(root)
+    assert.equal(before.files['src/tests/helpers.rs'][0].label, 'whole file')
+    write(root, { 'src/tests/helpers.rs': 'pub fn h() { /* changed */ }\n' })
+    assert.deepEqual(compare(before, snapshot(root)), [{ change: 'changed', file: 'src/tests/helpers.rs', label: 'whole file' }])
+  })
+})
+
+test('#[path] on a test module is an error wherever it sits in the attributes', () => {
+  assert.throws(() => findTestBlocks('#[cfg(test)]\n#[path = "other.rs"]\nmod tests;\n'), /#\[path\] on a module/)
+  assert.throws(() => findTestBlocks('#[path = "other.rs"]\n#[cfg(test)]\npub(crate) mod tests;\n'), /#\[path\] on a module/)
+})
+
+test('a malformed lock file exits 2, never 1', () => {
+  withCrate({ 'src/lib.rs': LIB }, (root) => {
+    for (const text of ['{bad', '{"version":1}', '{"version":2,"files":{}}']) {
+      writeFileSync(join(root, 'lock.json'), text)
+      const r = spawnSync('node', [SCRIPT, 'verify', join(root, 'lock.json'), '--root', root], { encoding: 'utf8' })
+      assert.equal(r.status, 2, text)
+    }
+  })
+})
+
+test('other test frameworks count as tests', () => {
+  assert.deepEqual(labels('#[rstest]\nfn a() {}\n#[test_case(1)]\nfn b(x: u8) {}\n'), ['fn a', 'fn b'])
+})
+
+test('an unknown attribute that looks like a test is an error', () => {
+  assert.throws(() => findTestBlocks('#[my_test_macro]\nfn a() {}\n'), /looks like a test attribute/)
+})
+
+test('a cfg on a feature whose name says test is not the test cfg', () => {
+  assert.deepEqual(labels('#[cfg(feature = "test-utils")]\npub fn helper() {}\n'), [])
+})
+
+test('Cargo.toml is locked whole, so test settings cannot change', () => {
+  withCrate({ 'src/lib.rs': LIB }, (root) => {
+    const before = snapshot(root)
+    write(root, { 'Cargo.toml': '[package]\nname = "t"\nversion = "0.1.0"\n\n[lib]\ntest = false\n' })
+    assert.deepEqual(compare(before, snapshot(root)), [{ change: 'changed', file: 'Cargo.toml', label: 'test config (whole file)' }])
+  })
+})
+
+test('a fixture directory named target under tests/ is still locked', () => {
+  withCrate({ 'src/lib.rs': LIB, 'tests/target/f.txt': 'x' }, (root) => {
+    assert.ok('tests/target/f.txt' in snapshot(root).files)
+  })
+})
+
+test('a symbolic link is an error, not a skip', () => {
+  withCrate({ 'src/lib.rs': LIB }, (root) => {
+    symlinkSync(join(root, 'src/lib.rs'), join(root, 'src/link.rs'))
+    assert.throws(() => snapshot(root), /symbolic link/)
   })
 })
