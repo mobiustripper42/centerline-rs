@@ -18,6 +18,10 @@
 # Acronyms are registered here even when common, because Spink is new to Rust and asked for every
 # acronym defined the first time; this file is where that definition lives.
 
+- term: phase
+  says: one row of the plan's phase table, 0 to 10, ending in a diff against the TypeScript app; its tasks are issues labelled phase:N
+  not: [slice]
+
 - term: OSM
   says: OpenStreetMap, the open map the streets are loaded from
   not: []

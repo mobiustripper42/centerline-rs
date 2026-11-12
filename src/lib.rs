@@ -1,4 +1,4 @@
-//! Centerline, the Rust rewrite of the web half. Slice 1 starts the real code; until then this
+//! Centerline, the Rust rewrite of the web half. Phase 1 starts the real code; until then this
 //! crate holds one function so the gate has something to build, lint and test.
 
 /// The version in `Cargo.toml`, baked in at compile time by the `env!` macro.

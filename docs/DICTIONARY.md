@@ -7,7 +7,7 @@ Vocabulary already in the docs when the gate shipped is grandfathered and does n
 be registered — but registering it is always welcome, and registering one is how its
 alternates start being caught.
 
-16 terms.
+17 terms.
 
 | Term | Says | Not |
 |---|---|---|
@@ -21,6 +21,7 @@ alternates start being caught.
 | **HTTP** | how the app and the phone ask a server for a page or data; plain, it is not encrypted unless something underneath is | — |
 | **JSON** | the text format the API answers in. The Rust server must answer with the same JSON the TypeScript one does | — |
 | **OSM** | OpenStreetMap, the open map the streets are loaded from | — |
+| **phase** | one row of the plan's phase table, 0 to 10, ending in a diff against the TypeScript app; its tasks are issues labelled phase:N | `slice` |
 | **SQL** | the language the database is queried in. The coverage SQL is copied from the TypeScript repo verbatim | — |
 | **SRID** | the number naming a geometry's coordinate system. Every geometry here is 4326, plain longitude and latitude | — |
 | **URL** | the address of a page or an API route | — |
